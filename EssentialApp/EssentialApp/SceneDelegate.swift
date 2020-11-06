@@ -21,13 +21,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 				.appendingPathComponent("feed-store.sqlite"))
 	}()
 
-  private lazy var remoteFeedLoader: RemoteLoader = {
-    RemoteLoader(
-      url: URL(string: "https://ile-api.essentialdeveloper.com/essential-feed/v1/feed")!,
-      client: httpClient,
-      mapper: FeedItemsMapper.map
-    )
-  }()
+  private let remoteURL = URL(string: "https://ile-api.essentialdeveloper.com/essential-feed/v1/feed")!
 
 	private lazy var localFeedLoader: LocalFeedLoader = {
 		LocalFeedLoader(store: store, currentDate: Date.init)
@@ -67,12 +61,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 		localFeedLoader.validateCache { _ in }
 	}
     
-    private func makeRemoteFeedLoaderWithLocalFallback() -> FeedLoader.Publisher {
-        return remoteFeedLoader
-            .loadPublisher()
-            .caching(to: localFeedLoader)
-            .fallback(to: localFeedLoader.loadPublisher)
-    }
+  private func makeRemoteFeedLoaderWithLocalFallback() -> FeedLoader.Publisher {
+    return httpClient
+      .getPublisher(url: remoteURL)
+      .tryMap(FeedItemsMapper.map)
+      .caching(to: localFeedLoader)
+      .fallback(to: localFeedLoader.loadPublisher)
+  }
     
     private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
         return localImageLoader
