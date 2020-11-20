@@ -41,6 +41,12 @@ extension FeedImageCellController: UITableViewDataSource, UITableViewDelegate, U
     return cell!
   }
 
+  //if we don't have a good estimation for the row height (eg. if the cells are very flexible)
+  //we can move the image loading in the tableView(:willDisplay cell)
+//  public func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+//    delegate.didRequestImage()
+//  }
+
   public func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath) {
     cancelLoad()
   }
