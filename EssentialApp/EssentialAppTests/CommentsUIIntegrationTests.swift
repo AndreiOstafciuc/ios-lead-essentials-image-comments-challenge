@@ -161,8 +161,6 @@ class CommentsUIIntegrationTests: XCTestCase {
 
   class LoaderSpy {
 
-    // MARK: - FeedLoader
-
     private var requests = [PassthroughSubject<[ImageComment], Error>]()
 
     var loadCommentsCallCount: Int {
