@@ -13,8 +13,25 @@ class FeedAcceptanceTests: XCTestCase {
 		let feed = launch(httpClient: .online(response), store: .empty)
 		
 		XCTAssertEqual(feed.numberOfRenderedFeedImageViews(), 2)
-		XCTAssertEqual(feed.renderedFeedImageData(at: 0), makeImageData())
-		XCTAssertEqual(feed.renderedFeedImageData(at: 1), makeImageData())
+		XCTAssertEqual(feed.renderedFeedImageData(at: 0), makeImageData0())
+		XCTAssertEqual(feed.renderedFeedImageData(at: 1), makeImageData1())
+    XCTAssertTrue(feed.canLoadMoreFeed)
+
+    feed.simulateLoadMoreFeedAction()
+
+    XCTAssertEqual(feed.numberOfRenderedFeedImageViews(), 3)
+    XCTAssertEqual(feed.renderedFeedImageData(at: 0), makeImageData0())
+    XCTAssertEqual(feed.renderedFeedImageData(at: 1), makeImageData1())
+    XCTAssertEqual(feed.renderedFeedImageData(at: 2), makeImageData2())
+    XCTAssertTrue(feed.canLoadMoreFeed)
+
+    feed.simulateLoadMoreFeedAction()
+
+    XCTAssertEqual(feed.numberOfRenderedFeedImageViews(), 3)
+    XCTAssertEqual(feed.renderedFeedImageData(at: 0), makeImageData0())
+    XCTAssertEqual(feed.renderedFeedImageData(at: 1), makeImageData1())
+    XCTAssertEqual(feed.renderedFeedImageData(at: 2), makeImageData2())
+    XCTAssertFalse(feed.canLoadMoreFeed)
 	}
 	
 	func test_onLaunch_displaysCachedRemoteFeedWhenCustomerHasNoConnectivity() {
@@ -26,8 +43,8 @@ class FeedAcceptanceTests: XCTestCase {
 		let offlineFeed = launch(httpClient: .offline, store: sharedStore)
 
 		XCTAssertEqual(offlineFeed.numberOfRenderedFeedImageViews(), 2)
-		XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 0), makeImageData())
-		XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 1), makeImageData())
+		XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 0), makeImageData0())
+		XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 1), makeImageData1())
 	}
 	
 	func test_onLaunch_displaysEmptyFeedWhenCustomerHasNoConnectivityAndNoCache() {
@@ -95,11 +112,18 @@ class FeedAcceptanceTests: XCTestCase {
 	
 	private func makeData(for url: URL) -> Data {
 		switch url.path {
-		case "/image-1", "/image-2":
-			return makeImageData()
+		case "/image-0": return makeImageData0()
+    case "/image-1": return makeImageData1()
+    case "/image-2": return makeImageData2()
 
-    case "/essential-feed/v1/feed":
-      return makeFeedData()
+    case "/essential-feed/v1/feed" where url.query?.contains("after_id") == false:
+      return makeFirstFeedPageData()
+
+    case "/essential-feed/v1/feed" where url.query?.contains("after_id=5539CBA2-CB35-4392-ADC0-24A37D38E642") == true:
+      return makeSecondFeedPageData()
+
+    case "/essential-feed/v1/feed" where url.query?.contains("after_id=8339CBA2-CB35-4392-ADC0-24A37D38E723") == true:
+      return makeLastEmptyFeedPageData()
 
     case "/essential-feed/v1/image/2239CBA2-CB35-4392-ADC0-24A37D38E010/comments":
       return makeCommentsData()
@@ -109,16 +133,26 @@ class FeedAcceptanceTests: XCTestCase {
 		}
 	}
 	
-	private func makeImageData() -> Data {
-		return UIImage.make(withColor: .red).pngData()!
-	}
+	private func makeImageData0() -> Data { UIImage.make(withColor: .red).pngData()! }
+  private func makeImageData1() -> Data { UIImage.make(withColor: .green).pngData()! }
+  private func makeImageData2() -> Data { UIImage.make(withColor: .blue).pngData()! }
 	
-	private func makeFeedData() -> Data {
+	private func makeFirstFeedPageData() -> Data {
 		return try! JSONSerialization.data(withJSONObject: ["items": [
-			["id": "2239CBA2-CB35-4392-ADC0-24A37D38E010", "image": "http://feed.com/image-1"],
-			["id": "5539CBA2-CB35-4392-ADC0-24A37D38E642", "image": "http://feed.com/image-2"]
+			["id": "2239CBA2-CB35-4392-ADC0-24A37D38E010", "image": "http://feed.com/image-0"],
+			["id": "5539CBA2-CB35-4392-ADC0-24A37D38E642", "image": "http://feed.com/image-1"]
 		]])
 	}
+
+  private func makeSecondFeedPageData() -> Data {
+    return try! JSONSerialization.data(withJSONObject: ["items": [
+      ["id": "8339CBA2-CB35-4392-ADC0-24A37D38E723", "image": "http://feed.com/image-2"]
+    ]])
+  }
+
+  private func makeLastEmptyFeedPageData() -> Data {
+    return try! JSONSerialization.data(withJSONObject: ["items": []])
+  }
 
   private func makeCommentsData() -> Data {
     return try! JSONSerialization.data(withJSONObject: ["items": [
