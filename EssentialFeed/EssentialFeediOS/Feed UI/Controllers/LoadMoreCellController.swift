@@ -27,13 +27,14 @@ public class LoadMoreCellController: NSObject, UITableViewDataSource, UITableVie
 
   public func tableView(_ tableView: UITableView, willDisplay: UITableViewCell, forRowAt indexPath: IndexPath) {
     guard !cell.isLoading else { return }
+
     callback()
   }
 }
 
 extension LoadMoreCellController: ResourceLoadingView, ResourceErrorView {
   public func display(_ viewModel: ResourceLoadingViewModel) {
-    cell.isLoading = true
+    cell.isLoading = viewModel.isLoading
   }
 
   public func display(_ viewModel: ResourceErrorViewModel) {
