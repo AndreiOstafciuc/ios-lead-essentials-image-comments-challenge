@@ -33,10 +33,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 	private lazy var localFeedLoader: LocalFeedLoader = {
 		LocalFeedLoader(store: store, currentDate: Date.init)
 	}()
-    
-    private lazy var remoteImageLoader: RemoteFeedImageDataLoader = {
-        RemoteFeedImageDataLoader(client: httpClient)
-    }()
 
     private lazy var localImageLoader: LocalFeedImageDataLoader = {
         LocalFeedImageDataLoader(store: store)
@@ -125,13 +121,41 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     })
   }
     
-    private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
-        return localImageLoader
-            .loadImageDataPublisher(from: url)
-            .fallback(to: { [remoteImageLoader, localImageLoader] in
-                remoteImageLoader
-                    .loadImageDataPublisher(from: url)
-                    .caching(to: localImageLoader, using: url)
-            })
+  private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let client = HTTPClientProfilingDecorator(decoratee: httpClient, logger: logger)
+    return localImageLoader
+      .loadImageDataPublisher(from: url)
+      .fallback(to: { [localImageLoader] in
+        client
+          .getPublisher(url: url)
+          .tryMap(FeedImageDataMapper.map)
+          .caching(to: localImageLoader, using: url)
+      })
+  }
+}
+
+private class HTTPClientProfilingDecorator: HTTPClient {
+  private let decoratee: HTTPClient
+  private let logger: Logger
+
+  internal init(decoratee: HTTPClient, logger: Logger) {
+    self.decoratee = decoratee
+    self.logger = logger
+  }
+
+  func get(from url: URL, completion: @escaping (HTTPClient.Result) -> Void) -> HTTPClientTask {
+    logger.trace("Started loading url: \(url)")
+
+    let startTime = CACurrentMediaTime()
+    return decoratee.get(from: url) { [logger] result in
+      if case let .failure(error) = result {
+        logger.trace("Failed to load ulr: \(url) with error: \(error.localizedDescription)")
+      }
+
+      let elapsed = CACurrentMediaTime() - startTime
+      logger.trace("Finished loading url: \(url) in \(elapsed) seconds")
+
+      completion(result)
     }
+  }
 }
